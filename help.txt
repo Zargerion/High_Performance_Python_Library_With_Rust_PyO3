@@ -1,0 +1,8 @@
+pip install /home/zargerion/vs-projects/superlibz/lib/target/wheels/lib-0.1.0-cp310-cp310-manylinux_2_34_x86_64.whl
+
+pip uninstall lib-0.1.0-cp310-cp310-manylinux_2_34_x86_64.whl
+
+source env/bin/activate
+
+maturin develop
+maturin build
