@@ -18,3 +18,5 @@ import moviepy.video.fx.resize as resizer
 ffmpeg -i input.webm -threads 4 output.mp4
 
 ffmpeg -i input.mp4 -vf scale=1280x720 output.mp4
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:usr\lib\x86_64-linux-gnu\pulseaudio\libpulsecommon-15.99.so

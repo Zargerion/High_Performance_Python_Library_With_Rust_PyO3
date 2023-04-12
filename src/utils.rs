@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::{self, fs, io, process::Command};
 
-
+#[allow(dead_code)]
 pub fn is_dir_empty( dir: String) -> bool {
     if let Ok(entries) = fs::read_dir(dir) {
         return entries.count() == 0;

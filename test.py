@@ -18,6 +18,8 @@ except:
     print("Cannot run this function.")
 
 try: 
-   video_conversion_with_ffmpeg("/home/zargerion/vs-projects/superlibz/test_videos/webm_videos/file.webm", "/home/zargerion/vs-projects/superlibz/test_videos/to_mp4/file.mp4")
+   video_conversion_with_ffmpeg("/home/zargerion/vs-projects/superlibz/test_videos/mp4_videos/file.mp4", "/home/zargerion/vs-projects/superlibz/test_videos/to_webm/file.webm")
 except:
     print("Cannot run this function.")
+
+print("NicE!")
