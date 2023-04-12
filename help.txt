@@ -6,3 +6,131 @@ source env/bin/activate
 
 maturin develop
 maturin build
+
+cargo clean
+cargo build
+
+
+import os
+from moviepy.editor import *
+import moviepy.video.fx.resize as resizer
+
+def compress_video(input_file_path, target_size_mb):
+    """
+    Сжимает видеофайл формата mp4 до указанного размера в килобайтах.
+
+    Args:
+        input_file_path (str): Путь к исходному видеофайлу mp4.
+        target_size_mb (int): Целевой размер сжатого видеофайла в килобайтах.
+
+    Returns:
+        None
+    """
+
+    video = VideoFileClip(input_file_path)
+
+    output_file_path = os.path.splitext(input_file_path)[0] + "_compressed.mp4"
+
+    w = video.w
+    h = video.h
+    print("Текущее разрешение: ", w,"x",h)
+
+    video_file_size_mb = os.path.getsize(input_file_path) / 1024 / 1024
+    file_size_percent_mb = round((target_size_mb / video_file_size_mb), 2) # 0.0
+
+    compressed_video = video.fx(resizer.resize, newsize=file_size_percent_mb)
+    compressed_video.write_videofile(filename=output_file_path, fps=24, threads=12)
+
+    w = compressed_video.w
+    h = compressed_video.h
+    print("Новое разрешение: ", w,"x",h)
+
+    compressed_size_kb = os.path.getsize(output_file_path) / 1024
+    
+    print(f"Видео сжато и сохранено как: {output_file_path}")
+    print(f"Конечный размер файла: {compressed_size_kb} KB или {compressed_size_kb / 1024} MB")
+
+compress_video("C:/Users/щдуп/Downloads/16811327162570.mp4", 8)
+
+fn main() {
+    ffmpeg::init().unwrap();
+
+    let in_path = Path::new("input.webm");
+    let out_path = Path::new("output.mp4");
+
+    let mut ictx = ffmpeg::format::input(&in_path).unwrap();
+    let mut octx = ffmpeg::format::output(&out_path).unwrap();
+
+    let mut stream_mapping = vec![None; ictx.nb_streams() as usize];
+
+    for (i, ist) in ictx.streams().enumerate() {
+        if ist.codec().codec_type() == ffmpeg::media::Type::Audio
+            || ist.codec().codec_type() == ffmpeg::media::Type::Video
+        {
+            let ost = octx.add_stream(ist.codec().decoder().codec()).unwrap();
+            ost.set_parameters(ist.parameters());
+            stream_mapping[i] = Some(ost.index());
+        }
+    }
+
+    octx.write_header().unwrap();
+
+    for (stream, mut packet) in ictx.packets() {
+        if let Some(out_stream_index) = stream_mapping[stream.index() as usize] {
+            packet.rescale_ts(stream.time_base(), octx.stream(out_stream_index).unwrap().time_base());
+            packet.set_stream(out_stream_index);
+            octx.interleaved_write_frame(&mut packet).unwrap();
+        }
+    }
+
+    octx.write_trailer().unwrap();
+}
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+fn main() {
+    ffmpeg::init().unwrap();
+
+    let in_path = Path::new("input.mp4");
+    let out_path = Path::new("output.mp4");
+
+    let mut ictx = ffmpeg::format::input(&in_path).unwrap();
+    let mut octx = ffmpeg::format::output(&out_path).unwrap();
+
+    let mut stream_mapping = vec![None; ictx.nb_streams() as usize];
+
+    for (i, ist) in ictx.streams().enumerate() {
+        if ist.codec().codec_type() == ffmpeg::media::Type::Audio {
+            let ost = octx.add_stream(ist.codec().decoder().codec()).unwrap();
+            ost.set_parameters(ist.parameters());
+            stream_mapping[i] = Some(ost.index());
+        } else if ist.codec().codec_type() == ffmpeg::media::Type::Video {
+            let decoder = ist.codec().decoder().video().unwrap();
+            let encoder = ffmpeg::encoder::find(ffmpeg::codec::Id::H264).unwrap().video().unwrap();
+
+            encoder.set_width(decoder.width() / 2);
+            encoder.set_height(decoder.height() / 2);
+            encoder.set_time_base(decoder.time_base());
+
+            let ost = octx.add_stream(encoder).unwrap();
+            ost.set_parameters(ist.parameters());
+            stream_mapping[i] = Some(ost.index());
+        }
+    }
+
+    octx.write_header().unwrap();
+
+    for (stream, mut packet) in ictx.packets() {
+        if let Some(out_stream_index) = stream_mapping[stream.index() as usize] {
+            packet.rescale_ts(stream.time_base(), octx.stream(out_stream_index).unwrap().time_base());
+            packet.set_stream(out_stream_index);
+            octx.interleaved_write_frame(&mut packet).unwrap();
+        }
+    }
+
+    octx.write_trailer().unwrap();
+}
+
+ffmpeg -i input.webm -threads 4 output.mp4
+
+ffmpeg -i input.mp4 -vf scale=1280x720 output.mp4

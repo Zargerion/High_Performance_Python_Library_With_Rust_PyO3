@@ -3,13 +3,13 @@ name = "superlibz"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "superlibz"
 crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = "0.18.1"
-image ={ version =  "0.24.6", features = ["webp-encoder"] }
+image = { version =  "0.24.6", features = ["webp-encoder"] }
 rayon = "1.7.0"
-
+num_cpus = "1.15.0"
+ffmpeg-next = "6.0.0"

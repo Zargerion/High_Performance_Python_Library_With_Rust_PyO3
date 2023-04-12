@@ -4,6 +4,7 @@ use rayon::prelude::{ParallelBridge, ParallelIterator};
 use std::fs::{self,};
 use std::path::Path;
 use std::io::{self,};
+use std::process::Command;
 use image::io::Reader as ImageReader;
 
 mod utils;
@@ -241,6 +242,84 @@ fn all_dir_png_to_jpg_no_threading(src: String, dest: String) -> std::io::Result
 }
 
 #[pyfunction]
+fn compress_video_mp4_with_ffmpeg(input_file_path: String, target_size_mb: i32) -> std::io::Result<()> {
+
+    let num_threads = num_cpus::get();
+    let input_file_path2 = input_file_path.clone();
+    let s_formatted = utils::make_formatted(input_file_path);
+    let s_slice_formatted = s_formatted.as_str();
+    let input_file_path = Path::new(&input_file_path2);
+    let output_file_path = Path::new(s_slice_formatted);
+
+    //------------------------------------------------------------
+
+    let (s, w, h) = match utils::get_video_resolution(input_file_path) {
+        Ok(swh) => swh,
+        Err(e) => return Err(io::Error::new(io::ErrorKind::Other, e.to_string())),
+    };
+    println!("{}", s);
+
+    let str_input_file_path = input_file_path.to_string_lossy();
+    let persent = match utils::make_persent_file_size(str_input_file_path.to_string(), target_size_mb) {
+        Ok(swh) => swh,
+        Err(e) => return Err(io::Error::new(io::ErrorKind::Other, e.to_string())),
+    };
+    let new_w = (w as f32) * persent;
+    let new_h = (h as f32) * persent;
+    let wh = format!("{}x{}", utils::nearest_even(new_w as i32).to_string(), utils::nearest_even(new_h as i32).to_string());
+    let wh2 = wh.clone();
+    println!("Resolution: {}", wh2);
+    let scale_resolution = format!("scale={}", wh);
+
+    //------------------------------------------------------------
+
+    let output = Command::new("ffmpeg")
+        .arg("-i")
+        .arg(input_file_path)
+        .arg("-vf")
+        .arg(scale_resolution.as_str())
+        .arg("-threads")
+        .arg(num_threads.to_string().as_str())
+        .arg(output_file_path)
+        .output()
+        .expect("Failed to execute command");
+
+    println!("status: {}", output.status);
+    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+    Ok(())
+}
+
+#[pyfunction]
+fn video_conversion_with_ffmpeg(src: String, dest: String) -> std::io::Result<()> {
+    let src_file = Path::new(&src);
+    let dest_file = Path::new(&dest);
+    let num_threads = num_cpus::get();
+
+    let output = Command::new("ffmpeg")
+        .arg("-i")
+        .arg(src_file)
+        .arg("-threads")
+        .arg(num_threads.to_string().as_str())
+        .arg(dest_file)
+        .output()
+        .expect("Failed to execute ffmpeg command");
+
+    
+    println!("Required ffmpeg. Try to run ffmpeg_setuping().");
+    println!("status: {}", output.status);
+    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+
+    Ok(())
+}
+
+#[pyfunction]
+fn ffmpeg_setuping() {
+    utils::ffmpeg_setup();
+}
+
+#[pyfunction]
 fn delete_files_in_dirs(directories: Vec<String>) -> std::io::Result<()> {
     for dir in directories {
         if let Ok(entries) = fs::read_dir(dir) {
@@ -266,6 +345,9 @@ fn superlibz(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(all_dir_jpg_to_png, m)?)?;
     m.add_function(wrap_pyfunction!(all_dir_png_to_jpg, m)?)?;
     m.add_function(wrap_pyfunction!(all_dir_png_to_jpg_no_threading, m)?)?;
+    m.add_function(wrap_pyfunction!(compress_video_mp4_with_ffmpeg, m)?)?;
+    m.add_function(wrap_pyfunction!(video_conversion_with_ffmpeg, m)?)?;
+    m.add_function(wrap_pyfunction!(ffmpeg_setuping, m)?)?;
     m.add_function(wrap_pyfunction!(delete_files_in_dirs, m)?)?;
     Ok(())
 }
@@ -371,8 +453,30 @@ mod tests {
     }
 
     #[test]
+    fn test_compress_video_mp4_with_ffmpeg() {
+        match compress_video_mp4_with_ffmpeg("/home/zargerion/vs-projects/superlibz/test_videos/mp4_videos/file.mp4".to_string(), 8) {
+            Ok(_) => assert!(true),
+            Err(e) => panic!("Error: {}", e),
+        }
+        let file = Path::new("/home/zargerion/vs-projects/superlibz/test_videos/mp4_videos/file_formatted.mp4");
+        assert!(file.exists());
+    }
+
+    #[test]
+    fn test_video_conversion_with_ffmpeg() {
+        let src = "/home/zargerion/vs-projects/superlibz/test_videos/webm_videos/file.webm".to_string();
+        let dst = "/home/zargerion/vs-projects/superlibz/test_videos/to_mp4/file.mp4".to_string();
+        match video_conversion_with_ffmpeg(src, dst) {
+            Ok(_) => assert!(true),
+            Err(e) => panic!("Error: {}", e),
+        }
+        let file = Path::new("/home/zargerion/vs-projects/superlibz/test_videos/to_mp4/file.mp4");
+        assert!(file.exists());
+    }
+
+    #[test]
     fn test_delete_files_in_dirs() {
-        let folders: Vec<String> = vec!["/home/zargerion/vs-projects/superlibz/test_images/to_webp".to_string(), "/home/zargerion/vs-projects/superlibz/test_images/to_jpg".to_string(), "/home/zargerion/vs-projects/superlibz/test_images/to_png".to_string()];
+        let folders: Vec<String> = vec!["/home/zargerion/vs-projects/superlibz/test_images/to_webp".to_string(), "/home/zargerion/vs-projects/superlibz/test_images/to_jpg".to_string(), "/home/zargerion/vs-projects/superlibz/test_images/to_png".to_string(), "/home/zargerion/vs-projects/superlibz/test_videos/to_mp4".to_string(), "/home/zargerion/vs-projects/superlibz/test_videos/to_webm".to_string()];
         let folders2 = folders.clone();
         match delete_files_in_dirs(folders) {
             Ok(_) => assert!(true),
